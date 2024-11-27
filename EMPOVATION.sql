@@ -11,11 +11,8 @@ JOIN Customers
 
 ---LIST OF PRODUCTS IN 2020
  SELECT *
- FROM Products
-
- SELECT *
  FROM Sales$
-
+ 
  ALTER TABLE SALES$
  ALTER COLUMN Year_OrderDate date null
  
@@ -42,11 +39,9 @@ JOIN Customers
  SELECT Name, Birthday, Gender, Country, State, City
  FROM Customers
  WHERE State = 'California'
- --Order By Birthday DESC
-
 ----------------------------------------------------------------------------------------------------------------------------
+--Total Sales Quantity For Product Number 2115
 
- ---Total Sales Quantity For Product Number 2115
  SELECT P.ProductKey, [Product Name], OrderYear, Sum (Quantity) as [Total Quantity]
  FROM Sales$ S
  JOIN Products P
@@ -59,7 +54,7 @@ JOIN Customers
 -----------------------------------------------------------------------------------------------------------------------------
 
  --- TOP 5 STORES WITH THE MOST SALES TRANSACTIONS
- ----------Removing the $ sign to aid calculation and converting money
+ ----------Removing the $ sign to aid calculation and converting to money
  SELECT Quantity, [Unit Price USD], CAST(REPLACE([Unit Price USD], '$', ' ') AS money) UnitPrice
   FROM Products P
  JOIN Sales$    S
@@ -71,10 +66,7 @@ JOIN Customers
  UPDATE Products
  SET UnitPrice = CAST(REPLACE([Unit Price USD], '$', ' ') AS money)
 
- SELECT *
- FROM Products
-
- ---Calculating the top 5 stores withthe most transactions
+ ---Calculating the top 5 stores with the most transactions
  SELECT StoreKey, sum(Quantity) Total_Quantity, sum(TotalPrice) GrandPrice
  from(
  SELECT ST.StoreKey,Quantity, [Unit Price USD], P.UnitPrice,
@@ -85,8 +77,7 @@ JOIN Customers
  JOIN Stores    ST
  ON  S.StoreKey = ST.StoreKey
  GROUP BY Quantity, [Unit Price USD], ST.StoreKey, P.UnitPrice
- --ORDER BY TotalPrice DESC
- ) AS Total_Transactions
+	) AS Total_Transactions
  GROUP BY StoreKey
  ORDER BY GrandPrice DESC
 
@@ -99,8 +90,6 @@ JOIN Customers
  FROM Products
  GROUP BY Category,CategoryKey
 
- 
-
  ---------------------------------------------------------------------------------------------------------
  --- Customer Purchases by Gender
 SELECT Gender, COUNT (DISTINCT [Order Number]) as [Total Purchase Made], COUNT(Gender) as [Gender Total]
@@ -109,11 +98,10 @@ JOIN Sales$ S
     ON C.CustomerKey = S.CustomerKey
 GROUP BY Gender
 
-
 ---------------------------------------------------------------------------------------------------------------------------
 
 ----List Of Product not Sold (Using TEMP TABLE)
------First is to create a temp table that contains the products sold
+-----Product sold temp table
 CREATE TABLE #temp_Products_Sold
 (
 ProductKey float null,
@@ -122,7 +110,7 @@ ProductKey float null,
 ALTER TABLE #temp_Products_Sold
 ADD Category nvarchar (255)  null 
 
-----Inserting Values into Temp Table
+----Inserting Values into Product sold Temp Table
 INSERT INTO #temp_Products_Sold 
 SELECT Sales$.ProductKey ,[Product Name], Category
 FROM Sales$
@@ -138,7 +126,7 @@ SELECT ProductKey, [Product Name], Category
 from #temp_Products_Sold
 Order by [Products Not Sold]
 
-----Taking the list of products not sold and locking it in a temp table to further group it.
+----Creating a temp table for products not sold
 CREATE TABLE #temp_Products_NotSold
 (
 ProductKey float null,
@@ -153,13 +141,7 @@ SELECT ProductKey, [Product Name], Category
 from #temp_Products_Sold
 Order by [Products Not Sold]
 
-----Counting the values in each category
-SELECT Category, COUNT(Category)as [Total quantity not sold]
-FROM #temp_Products_NotSold
-GROUP BY Category
-
-----Comparing the quantity sold vs quantity not sold wrt category values
-
+----Comparing quantity sold vs quantity not sold wrt category values
 SELECT 
     COALESCE(ns.Category, s.Category) AS Category,
     COALESCE(ns.TotalNotSold, 0) AS [Total Quantity Not Sold],
@@ -174,25 +156,10 @@ FULL OUTER JOIN
      GROUP BY Category) s
 ON ns.Category = s.Category;
 
---GROUP BY Category
-SELECT Category, COUNT(Category)as [Total quantity not sold]
-FROM #temp_Products_Sold
-GROUP BY Category
-
-
-
----------------------------------------------------------------------------------------------------------------
------Currency Conversion for Orders
-SELECT *
-FROM Exchange_Rates
-
-SELECT ([Currency Code])
-FROM Sales$
-
 ------------------------------------------------------------------------------------------------------------
 ---CUSTOMER SEGMENTATION BY PURCHASE BEHAVIOUR AND DEMOGRAPHICS
 
---BY GENDER
+-- 1. BY GENDER
 SELECT Gender, COUNT([Order Number]) as [Total Orders]
 FROM Sales$ S
 JOIN
@@ -202,7 +169,7 @@ GROUP BY Gender
 ORDER BY Gender
 
 
---BY STATE
+--2. BY STATE
 --(1 WAY) 
 SELECT [Order Number], State, Category, COUNT([Order Number]) OVER (PARTITION BY [Order Number])as [Total Orders] 
 FROM Sales$	S
@@ -226,8 +193,8 @@ JOIN
 	GROUP BY State
 	ORDER BY [Total Orders]DESC
 
---BY AGE
-		---CONVERTING "BIRTHDAY" FROM NVARCHAR TO DATETIME AND UPDATING THE CUSTOMERS TABLE TO REFLECT THE CHANGE
+--3. BY AGE
+---CONVERTING "BIRTHDAY" FROM NVARCHAR TO DATETIME AND UPDATING THE CUSTOMERS TABLE TO REFLECT THE CHANGE
 SELECT CAST("Birthday" AS DATETIME) ConvertedBirthday
 FROM Customers
 
@@ -237,7 +204,7 @@ ADD ConvertedBirthday DATETIME NULL
 UPDATE Customers
 SET ConvertedBirthday = CAST("Birthday" AS DATETIME)
 
-	----EXTRACTING THE YEAR FROM THE CONVERTEDBIRTHDAY
+----EXTRACTING THE YEAR FROM THE CONVERTEDBIRTHDAY
 SELECT YEAR(ConvertedBirthday) as BirthYear
 FROM Customers
 
@@ -266,19 +233,13 @@ FROM Customers C
 JOIN Sales$    S
       ON  	C. CustomerKey = S.CustomerKey
 
-	  SELECT *
-	  FROM Customers
-	  --ALTER TABLE Customers
-	  --ALTER COLUMN Customer_Age INT NOT NULL
-
-											---OR
+	 						---OR
 
 ---CALCULATING THE DATE DIFFERENCE BETWEEN THE CONVERTEDBIRTHDAY AND THE ORDERYEAR TO GET THE CUSTOMERS AGE AS AT THE TIME THE ORDER WAS PLACED
 SELECT DATEDIFF(yyyy, "ConvertedBirthday","Year_OrderDate") AS CustomerAge
 FROM Customers C
 JOIN Sales$    S
       ON  	C. CustomerKey = S.CustomerKey
-
 
 ALTER TABLE Customers
 ADD CustomerAge Int Null
@@ -289,7 +250,7 @@ FROM Customers C
 JOIN Sales$    S
       ON  	C. CustomerKey = S.CustomerKey
 
-	  --CLASSIFICATION OF CUSTOMERS AGE 
+  --CLASSIFICATION OF CUSTOMERS AGE 
 SELECT Customer_age,
 CASE	WHEN Customer_Age BETWEEN 14 and 19 THEN 'Teenager'
 		WHEN Customer_Age BETWEEN 20 and 40 THEN 'Youth'
@@ -323,19 +284,11 @@ JOIN
 	ON  S.ProductKey = P.ProductKey
 	GROUP BY [Age Classification], Category
 	ORDER BY TotalOrders DESC
-	--GROUP BY [Age Classification]
-	--ORDER BY [Total Orders]DESC
-
-SELECT *
-FROM Customers
-SELECT *
-FROM Sales$
-
+	
 ----------------------------------------------------------------------------------------------------------------------------------------
-
-
-  -----Impact of Store Size on Sales Volume
- ---CONVERTING [UNIT PTRICE USD] TO MONEY AND UPDATING
+ -----Impact of Store Size on Sales Volume
+ 
+	---CONVERTING [UNIT PTRICE USD] TO MONEY AND UPDATING
   
   ALTER TABLE Sales$
   ADD UnitPrice money null
@@ -346,7 +299,7 @@ FROM Sales$
  JOIN Sales$    S
  ON P.ProductKey = S.ProductKey
 
- --REPLACING STORE IDs WITH COUNTRY AS ONLINE WITH 'O' AS SQUARE METER
+ --REPLACING WITH ZERO (0) THE SQUARE METER OF STORES WITH IDs AS ONLINE IN THE COUNTRY COLUMN
   SELECT REPLACE([Square Meters], ' ', '0')
   FROM Stores ST
   join Sales$ SA
@@ -359,8 +312,8 @@ ADD [Store Category] nvarchar (255) NULL
 
   UPDATE Stores
   SET [Store Category] = CASE	When [Square Meters]  >= 1000 Then 'Large Store'
-								When [Square Meters] IS NULL Then 'Online Store'
-								Else 'Small Store'
+				When [Square Meters] IS NULL Then 'Online Store'
+							      Else 'Small Store'
 						 END 
 
 
@@ -378,9 +331,7 @@ SELECT ST.StoreKey,[Store Category], SUM (UnitPrice) [Total Sold],
   join Sales$ SA
   ON ST.StoreKey = SA.StoreKey
   GROUP BY [Store Category], ST.StoreKey
-  --ORDER BY[Total Sold]
-
-  
+-------------------------------------------------------------------------------------------------  
 ----RUNNING TOTAL SALES OVER TIME
 SELECT Category, Year_OrderDate,S.UnitPrice, SUM (S.UnitPrice)OVER (ORDER BY Year_OrderDate)as [Running Total]
 FROM Sales$ S
@@ -389,8 +340,7 @@ Products P
 ON 
 S.ProductKey= P.ProductKey
 GROUP  BY Year_OrderDate, S.UnitPrice, Category
-
-
+----------------------------------------------------------------------------------------------------
 ---LIFE TIME VALUE OF CUSTOMERS
 WITH CustomerPurchases AS (
     SELECT 
@@ -411,14 +361,14 @@ Metrics AS (
     FROM 
         CustomerPurchases
 	GROUP BY 
-			SalesYear)
+		SalesYear)
 SELECT 
 	 SalesYear,
     (AveragePurchaseValue * PurchaseFrequency * EstimatedCustomerLifespan) AS CustomerLifetimeValue
 FROM 
     Metrics,
     (SELECT 3 AS EstimatedCustomerLifespan) AS Lifespan;  
-
+------------------------------------------------------------------------------------------------------------------
 ----LIFE TIME VALUE OF CUSTOMERS BY COUNTRY 
 WITH 
 	CustomerPurchases AS (
@@ -448,7 +398,7 @@ FROM
     Metrics,
     (SELECT 3 AS EstimatedCustomerLifespan) AS Lifespan; 
   
-
+--------------------------------------------------------------------------------------------------------------
 ----TOTAL SALES TREND
 SELECT Category,OrderYear, SUM (Quantity) TotalQuantity, Sum(TotalPrice) TotalSalesPrice 
 FROM(
@@ -462,8 +412,3 @@ SELECT Quantity,P.UnitPrice,OrderYear,
  GROUP BY Quantity,P.UnitPrice,OrderYear, Category) AS Trend
  GROUP BY Category, OrderYear
  ORDER BY OrderYear DESC
-
-SELECT *
-FROM Products
-SELECT *
-FROM Sales$
